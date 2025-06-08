@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Multi-Track Audio Player</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+      body {
+        font-family: sans-serif;
+        background-image: url("bible-background.jpg"); /* Replace with your image path or URL */
+        background-size: cover;
+        background-position: center center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+
+        background-color: #f4f4f4;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+
+      .player,
+      .playlist-container {
+        width: 80%;
+        max-width: 500px;
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .audio-info h2 {
+        font-size: 1.8em;
+        color: #333;
+        margin-bottom: 5px;
+      }
+      .audio-info p {
+        font-size: 0.95em;
+        color: #555;
+        line-height: 1.5;
+        margin-bottom: 10px;
+      }
+      .audio-info .sermon-by {
+        font-weight: bold;
+        color: #777;
+        font-size: 0.9em;
+      }
+      audio {
+        width: 100%;
+        margin-bottom: 20px;
+      }
+      .controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        margin-top: 15px;
+      }
+      .progress-container {
+        flex-grow: 1;
+        height: 10px;
+        background: #e0e0e0;
+        border-radius: 5px;
+        cursor: pointer;
+        overflow: hidden;
+      }
+      .progress {
+        height: 100%;
+        width: 0;
+        background: #4caf50;
+        border-radius: 5px;
+      }
+      .volume-control {
+        width: 80px;
+        cursor: pointer;
+      }
+      .download-button {
+        display: inline-block;
+        margin-top: 15px;
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        transition: background-color 0.2s ease;
+        font-size: 0.9em;
+        cursor: pointer;
+      }
+      .download-button:hover {
+        background-color: #0056b3;
+      }
+
+      /* Playlist Specific Styles */
+      .playlist-container h3 {
+        text-align: center;
+        color: #333;
+        margin-bottom: 20px;
+      }
+      .playlist {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+      .playlist-item {
+        padding: 12px 15px;
+        border-bottom: 1px solid #eee;
+        text-align: left;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+      }
+      .playlist-item:last-child {
+        border-bottom: none;
+      }
+      .playlist-item:hover {
+        background-color: #f0f0f0;
+      }
+      .playlist-item.active {
+        background-color: #e6ffe6;
+        font-weight: bold;
+        color: #4caf50;
+      }
+      .playlist-item-title {
+        font-weight: bold;
+        color: #333;
+        display: block;
+        margin-bottom: 5px;
+      }
+      .playlist-item-author {
+        font-size: 0.85em;
+        color: #777;
+      }
+
+      /* Login/Profile Container Styles */
+      .login-container {
+        width: 80%;
+        max-width: 400px;
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .login-container h2 {
+        margin-bottom: 20px;
+        color: #333;
+      }
+
+      .login-status {
+        margin-top: 20px;
+        font-weight: bold;
+        color: #555;
+      }
+
+      /* Profile specific styles */
+      .profile-info {
+        font-size: 1.1em;
+        margin-bottom: 10px;
+        color: #555;
+      }
+
+      .profile-info span {
+        font-weight: bold;
+        color: #333;
+      }
+
+      #signout-button {
+        margin-top: 20px;
+        padding: 10px 20px;
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1em;
+        transition: background-color 0.2s ease;
+      }
+      #signout-button:hover {
+        background-color: #c82333;
+      }
+
+      /* Utility class to hide elements */
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-container">
+      <div id="loginSection">
+        <h2>Sign in to access the Audio Player</h2>
+        <div
+          id="g_id_onload"
+          data-client_id="470718603398-n9fus3ej249dm72256nn2k5t9tkbcdls.apps.googleusercontent.com"
+          data-callback="handleCredentialResponse"
+          data-auto_prompt="false"
+        ></div>
+        <div
+          class="g_id_signin"
+          data-type="standard"
+          data-size="large"
+          data-theme="outline"
+          data-text="sign_in_with"
+          data-shape="rectangular"
+          data-logo_alignment="left"
+        ></div>
+        <p class="login-status" id="loginStatus"></p>
+      </div>
+
+      <div id="profileSection" class="hidden">
+        <h2>Welcome!</h2>
+        <p>You are logged in as:</p>
+        <p class="profile-info">Name: <span id="profileName"></span></p>
+        <p class="profile-info">Email: <span id="profileEmail"></span></p>
+        <button id="signout-button">Sign Out</button>
+      </div>
+    </div>
+
+    <div class="player hidden" id="audioPlayerContainer">
+      <div class="audio-info">
+        <h2 id="audioTitle">Select a Track</h2>
+        <p id="audioDescription">
+          No audio selected. Please choose a track from the playlist below.
+        </p>
+        <p class="sermon-by">Sermon by: <span id="audioAuthor">N/A</span></p>
+      </div>
+
+      <audio id="audio" controls>
+        Your browser does not support the audio element.
+      </audio>
+
+      <div class="controls">
+        <div class="progress-container">
+          <div class="progress"></div>
+        </div>
+        <input
+          type="range"
+          id="volume-control"
+          class="volume-control"
+          min="0"
+          max="1"
+          step="0.01"
+          value="1"
+        />
+      </div>
+
+      <a id="downloadButton" href="" class="download-button" download
+        >Download Audio</a
+      >
+    </div>
+
+    <div class="playlist-container hidden" id="playlistContainer">
+      <h3>Playlist</h3>
+      <ul id="playlist" class="playlist"></ul>
+    </div>
+
+    <script>
+      // --- IMPORTANT: Replace with your actual Google Client ID ---
+      const GOOGLE_CLIENT_ID =
+        "470718603398-n9fus3ej249dm72256nn2k5t9tkbcdls.apps.googleusercontent.com";
+      // --- END IMPORTANT ---
+
+      const audio = document.getElementById("audio");
+      const progressBar = document.querySelector(".progress");
+      const volumeControl = document.getElementById("volume-control");
+      const progressContainer = document.querySelector(".progress-container");
+      const downloadButton = document.getElementById("downloadButton");
+
+      const audioTitle = document.getElementById("audioTitle");
+      const audioDescription = document.getElementById("audioDescription");
+      const audioAuthor = document.getElementById("audioAuthor");
+      const playlistElement = document.getElementById("playlist");
+
+      // References to login/profile sections
+      const loginContainer = document.querySelector(".login-container");
+      const loginSection = document.getElementById("loginSection");
+      const profileSection = document.getElementById("profileSection");
+      const profileName = document.getElementById("profileName");
+      const profileEmail = document.getElementById("profileEmail");
+
+      const audioPlayerContainer = document.getElementById(
+        "audioPlayerContainer"
+      );
+      const playlistContainer = document.getElementById("playlistContainer");
+      const loginStatusElement = document.getElementById("loginStatus");
+      const signoutButton = document.getElementById("signout-button");
+
+      let currentTrackIndex = -1;
+      // localStoragePositionKey is dynamically set per track to remember individual song progress
+      let localStoragePositionKey = "";
+      const localStorageVolumeKey = "audioVolumeLevel";
+      const localStorageLoggedInUserKey = "loggedInGoogleUser";
+
+      // --- Audio Files Data (Dummy Data for 30 files) ---
+      const playlist = [
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+          title: "Opening Prayer",
+          description: "A calming instrumental piece for reflection.",
+          author: "SoundHelix",
+          downloadFilename: "Opening_Prayer.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+          title: "The Parable of the Sower",
+          description:
+            "A deep dive into the biblical parable and its modern applications.",
+          author: "Pastor John Doe",
+          downloadFilename: "Parable_Sower.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+          title: "Finding Inner Peace",
+          description: "Guidance on achieving tranquility in a busy world.",
+          author: "Dr. Jane Smith",
+          downloadFilename: "Finding_Inner_Peace.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+          title: "Love Thy Neighbor",
+          description:
+            "Exploring the true meaning of compassion and community.",
+          author: "Elder Michael Brown",
+          downloadFilename: "Love_Thy_Neighbor.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
+          title: "Faith in Uncertain Times",
+          description: "Sermon on maintaining hope during challenges.",
+          author: "Pastor Emily White",
+          downloadFilename: "Faith_Uncertain_Times.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3",
+          title: "The Power of Forgiveness",
+          description:
+            "Understanding and practicing forgiveness for spiritual growth.",
+          author: "Bishop David Green",
+          downloadFilename: "Power_of_Forgiveness.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3",
+          title: "Generosity and Giving",
+          description: "A message on the blessings of a giving heart.",
+          author: "Deacon Sarah Miller",
+          downloadFilename: "Generosity_Giving.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
+          title: "Building Strong Relationships",
+          description: "Biblical principles for healthy connections.",
+          author: "Pastor Chris Johnson",
+          downloadFilename: "Strong_Relationships.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3",
+          title: "Overcoming Adversity",
+          description: "Inspirational talk on perseverance through trials.",
+          author: "Rev. Laura Adams",
+          downloadFilename: "Overcoming_Adversity.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3",
+          title: "The Importance of Prayer",
+          description: "A guide to a more meaningful prayer life.",
+          author: "Pastor Kevin Lee",
+          downloadFilename: "Importance_Prayer.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-11.mp3",
+          title: "Living a Purposeful Life",
+          description: "Discovering your divine calling and mission.",
+          author: "Dr. Susan Clark",
+          downloadFilename: "Purposeful_Life.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-12.mp3",
+          title: "The Good Samaritan",
+          description: "Lessons from the parable of compassion.",
+          author: "Pastor Mark Davis",
+          downloadFilename: "Good_Samaritan.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3",
+          title: "Gratitude and Thanksgiving",
+          description: "Cultivating an attitude of appreciation.",
+          author: "Sister Mary Jones",
+          downloadFilename: "Gratitude_Thanksgiving.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-14.mp3",
+          title: "Walking in Faith",
+          description: "A sermon on trusting God's plan.",
+          author: "Pastor Rachel Kim",
+          downloadFilename: "Walking_in_Faith.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3",
+          title: "The Prodigal Son",
+          description: "Understanding redemption and grace.",
+          author: "Father Thomas Wilson",
+          downloadFilename: "Prodigal_Son.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3",
+          title: "Spiritual Disciplines",
+          description: "Practices for a deeper spiritual connection.",
+          author: "Prof. Sarah White",
+          downloadFilename: "Spiritual_Disciplines.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-17.mp3",
+          title: "Joy in the Lord",
+          description: "Discovering lasting joy despite circumstances.",
+          author: "Evangelist Daniel Lee",
+          downloadFilename: "Joy_in_the_Lord.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-18.mp3",
+          title: "Serving Others",
+          description: "The call to serve our community.",
+          author: "Deacon Mark Taylor",
+          downloadFilename: "Serving_Others.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-19.mp3",
+          title: "Understanding Grace",
+          description: "A detailed explanation of divine grace.",
+          author: "Pastor Olivia Green",
+          downloadFilename: "Understanding_Grace.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-20.mp3",
+          title: "The Armor of God",
+          description: "Equipping ourselves for spiritual battles.",
+          author: "Bishop Robert King",
+          downloadFilename: "Armor_of_God.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-21.mp3",
+          title: "Peace That Transcends",
+          description: "Finding peace that surpasses all understanding.",
+          author: "Pastor Sophia Rodriguez",
+          downloadFilename: "Peace_Transcends.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-22.mp3",
+          title: "The Beatitudes",
+          description: "Lessons from the Sermon on the Mount.",
+          author: "Father James Scott",
+          downloadFilename: "The_Beatitudes.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-23.mp3",
+          title: "Humility and Pride",
+          description: "Understanding the importance of humility.",
+          author: "Reverend Alice Chen",
+          downloadFilename: "Humility_Pride.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-24.mp3",
+          title: "Called to Ministry",
+          description: "Exploring different forms of Christian service.",
+          author: "Pastor Daniel Evans",
+          downloadFilename: "Called_to_Ministry.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-25.mp3",
+          title: "The Holy Spirit's Role",
+          description: "A sermon on the role of the Holy Spirit in daily life.",
+          author: "Dr. Evelyn Parker",
+          downloadFilename: "Holy_Spirit_Role.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-26.mp3",
+          title: "Rest in God's Presence",
+          description: "Finding true rest and rejuvenation.",
+          author: "Pastor Ben Wright",
+          downloadFilename: "Rest_in_Gods_Presence.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-27.mp3",
+          title: "Dealing with Doubt",
+          description: "Addressing questions of faith and uncertainty.",
+          author: "Apostle Lisa Hall",
+          downloadFilename: "Dealing_with_Doubt.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-28.mp3",
+          title: "Growing in Wisdom",
+          description: "The pursuit of divine wisdom and understanding.",
+          author: "Prophet Samuel Bell",
+          downloadFilename: "Growing_in_Wisdom.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-29.mp3",
+          title: "The Second Coming",
+          description: "Understanding biblical prophecies about the end times.",
+          author: "Pastor Maria Garcia",
+          downloadFilename: "Second_Coming.mp3",
+        },
+        {
+          src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-30.mp3",
+          title: "Eternal Life",
+          description: "What it means to have eternal life through faith.",
+          author: "Dr. Christopher Lee",
+          downloadFilename: "Eternal_Life.mp3",
+        },
+      ];
+      // --- End Audio Files Data ---
+
+      // Event Listeners for player functionality
+      audio.addEventListener("timeupdate", updateProgress);
+      audio.addEventListener("loadedmetadata", () => {
+        initializeAudio(); // When a new track loads, try to resume its position
+      });
+      document.addEventListener("DOMContentLoaded", () => {
+        initializeVolume();
+        renderPlaylist();
+        checkLoginStatus(); // Check if user was previously logged in
+      });
+
+      progressContainer.addEventListener("click", setProgress);
+      volumeControl.addEventListener("input", setVolume);
+      volumeControl.addEventListener("change", saveVolume);
+      audio.addEventListener("pause", savePlaybackPosition); // Save when user pauses
+      // Save when user closes/navigates away from the page
+      window.addEventListener("beforeunload", () => {
+        savePlaybackPosition();
+        saveVolume();
+      });
+      signoutButton.addEventListener("click", signOutUser);
+
+      // --- Core Player Functions ---
+      function updateProgress() {
+        const { duration, currentTime } = audio;
+        if (duration) {
+          const progressPercent = (currentTime / duration) * 100;
+          progressBar.style.width = `${progressPercent}%`;
+        }
+      }
+
+      function setProgress(e) {
+        const width = this.clientWidth;
+        const clickX = e.offsetX;
+        const duration = audio.duration;
+        if (duration) {
+          audio.currentTime = (clickX / width) * duration;
+        }
+      }
+
+      function setVolume(e) {
+        audio.volume = e.target.value;
+      }
+
+      // --- Playback and Volume Memory Functions ---
+      // This function saves the current playback position for the currently loaded track.
+      // The key is unique per track based on its source URL.
+      function savePlaybackPosition() {
+        // Only save if a track is actually loaded and has valid time data
+        if (
+          currentTrackIndex !== -1 &&
+          audio.currentTime > 0 &&
+          !isNaN(audio.duration) &&
+          playlist[currentTrackIndex]
+        ) {
+          const currentTrackSrc = playlist[currentTrackIndex].src;
+          const uniqueKey = "audioPlaybackPosition_" + btoa(currentTrackSrc); // Create unique key for this song
+          localStorage.setItem(uniqueKey, audio.currentTime.toString());
+          console.log(
+            `Playback position saved for track ${currentTrackIndex} (${playlist[currentTrackIndex].title}): ${audio.currentTime} seconds`
+          );
+        }
+      }
+
+      // This function loads the saved playback position for the currently loaded track.
+      function initializeAudio() {
+        // Ensure a track is actually loaded before trying to retrieve its saved position
+        if (currentTrackIndex !== -1 && playlist[currentTrackIndex]) {
+          const currentTrackSrc = playlist[currentTrackIndex].src;
+          const uniqueKey = "audioPlaybackPosition_" + btoa(currentTrackSrc); // Recreate the unique key
+          const savedPosition = localStorage.getItem(uniqueKey);
+          if (savedPosition) {
+            audio.currentTime = parseFloat(savedPosition);
+            console.log(
+              `Playback position loaded for track ${currentTrackIndex} (${playlist[currentTrackIndex].title}): ${savedPosition} seconds`
+            );
+          } else {
+            audio.currentTime = 0; // Start from beginning if no saved position
+            console.log(
+              `No saved position found for track ${currentTrackIndex} (${playlist[currentTrackIndex].title}), starting from 0.`
+            );
+          }
+        } else {
+          audio.currentTime = 0; // If no track loaded, reset audio element
+        }
+        updateProgress(); // Update the progress bar visually
+      }
+
+      function saveVolume() {
+        localStorage.setItem(localStorageVolumeKey, audio.volume.toString());
+        console.log(`Volume saved: ${audio.volume}`);
+      }
+
+      function initializeVolume() {
+        const savedVolume = localStorage.getItem(localStorageVolumeKey);
+        if (savedVolume !== null) {
+          const volume = parseFloat(savedVolume);
+          audio.volume = volume;
+          volumeControl.value = volume;
+          console.log(`Volume loaded: ${volume}`);
+        } else {
+          volumeControl.value = audio.volume; // Set to default if no saved volume
+        }
+      }
+
+      audio.addEventListener("error", () => {
+        console.error("Error loading audio:", audio.error.message);
+        audioDescription.textContent =
+          "Error loading audio. Please check the audio source URL for this track.";
+        audioTitle.textContent = "Loading Failed";
+        downloadButton.style.display = "none";
+      });
+
+      // --- Playlist Management Functions ---
+      function renderPlaylist() {
+        playlistElement.innerHTML = "";
+        playlist.forEach((track, index) => {
+          const listItem = document.createElement("li");
+          listItem.classList.add("playlist-item");
+          listItem.dataset.index = index;
+
+          const titleSpan = document.createElement("span");
+          titleSpan.classList.add("playlist-item-title");
+          titleSpan.textContent = track.title;
+
+          const authorSpan = document.createElement("span");
+          authorSpan.classList.add("playlist-item-author");
+          authorSpan.textContent = `by ${track.author}`;
+
+          listItem.appendChild(titleSpan);
+          listItem.appendChild(authorSpan);
+
+          listItem.addEventListener("click", () => loadTrack(index));
+          playlistElement.appendChild(listItem);
+        });
+      }
+
+      function loadTrack(index) {
+        // Before loading a new track, save the position of the currently playing/paused track
+        if (currentTrackIndex !== -1 && currentTrackIndex !== index) {
+          // Only save if a track was playing and it's a different one
+          savePlaybackPosition();
+        }
+
+        currentTrackIndex = index;
+        const selectedTrack = playlist[currentTrackIndex];
+
+        audio.src = selectedTrack.src;
+        audioTitle.textContent = selectedTrack.title;
+        audioDescription.textContent = selectedTrack.description;
+        audioAuthor.textContent = selectedTrack.author;
+        downloadButton.href = selectedTrack.src;
+        downloadButton.setAttribute("download", selectedTrack.downloadFilename);
+        downloadButton.style.display = "inline-block";
+
+        // The `loadedmetadata` event listener will call initializeAudio()
+        // to load the saved position for this newly loaded track.
+        audio.load(); // Load the new audio source
+
+        // Update active class in playlist
+        document.querySelectorAll(".playlist-item").forEach((item) => {
+          item.classList.remove("active");
+        });
+        document
+          .querySelector(`.playlist-item[data-index="${index}"]`)
+          .classList.add("active");
+
+        audio.play().catch((e) => console.log("Autoplay prevented:", e));
+      }
+
+      // --- Google Login/Profile Specific Functions ---
+
+      function handleCredentialResponse(response) {
+        const idToken = response.credential;
+        console.log("ID Token received:", idToken);
+
+        // IMPORTANT: This frontend demo only decodes the JWT for display.
+        // A secure application MUST send this token to a backend for verification.
+        try {
+          const userProfile = parseJwt(idToken);
+          console.log(
+            "Logged in user profile (from decoded JWT - for display only):",
+            userProfile
+          );
+
+          if (userProfile && userProfile.email) {
+            // Before changing UI, save current state if player was active
+            if (!audio.paused && audio.currentTime > 0) {
+              // If playing/paused on a track before login
+              savePlaybackPosition();
+            }
+
+            showLoggedInContent(userProfile.email, userProfile.name);
+            localStorage.setItem(
+              localStorageLoggedInUserKey,
+              JSON.stringify({
+                email: userProfile.email,
+                name: userProfile.name,
+              })
+            );
+
+            // If a specific "last played track for this user" needs to be loaded,
+            // that logic would go here. For now, it defaults to track 0.
+            if (playlist.length > 0) {
+              loadTrack(0); // Load the first track or last known user-specific track
+            }
+          } else {
+            console.error("Could not get user email from ID token.");
+            loginStatusElement.textContent = "Login failed. Please try again.";
+          }
+        } catch (error) {
+          console.error("Error decoding ID token:", error);
+          loginStatusElement.textContent = "Login failed. Invalid token.";
+        }
+      }
+
+      // Helper function to decode JWT (for frontend display only, NOT for security!)
+      function parseJwt(token) {
+        try {
+          const base64Url = token.split(".")[1];
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+          const jsonPayload = decodeURIComponent(
+            atob(base64)
+              .split("")
+              .map(function (c) {
+                return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+              })
+              .join("")
+          );
+          return JSON.parse(jsonPayload);
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function showLoggedInContent(email, name) {
+        loginSection.classList.add("hidden");
+        profileSection.classList.remove("hidden");
+
+        profileName.textContent = name || "N/A";
+        profileEmail.textContent = email || "N/A";
+
+        audioPlayerContainer.classList.remove("hidden");
+        playlistContainer.classList.remove("hidden");
+
+        loginStatusElement.textContent = "";
+        loginStatusElement.style.display = "none";
+      }
+
+      function showLoggedOutContent() {
+        loginSection.classList.remove("hidden");
+        profileSection.classList.add("hidden");
+
+        audioPlayerContainer.classList.add("hidden");
+        playlistContainer.classList.add("hidden");
+
+        // Reset player state (only after saving position)
+        audio.pause();
+        audio.currentTime = 0;
+        audioTitle.textContent = "Select a Track";
+        audioDescription.textContent =
+          "No audio selected. Please choose a track from the playlist below.";
+        audioAuthor.textContent = "N/A";
+        progressBar.style.width = "0%";
+
+        loginStatusElement.textContent = "";
+        loginStatusElement.style.display = "none";
+      }
+
+      function checkLoginStatus() {
+        const storedUser = localStorage.getItem(localStorageLoggedInUserKey);
+        if (storedUser) {
+          try {
+            const user = JSON.parse(storedUser);
+            if (user.email) {
+              showLoggedInContent(user.email, user.name);
+              // If a specific "last played track for this user" needs to be loaded on refresh/re-open,
+              // that logic would also go here instead of always loadTrack(0)
+              if (playlist.length > 0) {
+                loadTrack(0);
+              }
+            } else {
+              console.log("Stored user data incomplete, logging out.");
+              signOutUser();
+            }
+          } catch (e) {
+            console.error("Error parsing stored user data:", e);
+            localStorage.removeItem(localStorageLoggedInUserKey);
+            showLoggedOutContent();
+          }
+        } else {
+          showLoggedOutContent();
+        }
+      }
+
+      function signOutUser() {
+        // First, ensure the current playback position is saved before logging out
+        savePlaybackPosition();
+
+        // Google Identity Services client-side sign-out
+        if (window.google && google.accounts.id) {
+          google.accounts.id.disableAutoSelect(); // Prevents auto-login on next page load
+        }
+
+        localStorage.removeItem(localStorageLoggedInUserKey); // Clear our local user session
+        console.log("User signed out from app.");
+        showLoggedOutContent(); // Update UI to logged-out state and reset player display
+      }
+
+      window.handleCredentialResponse = handleCredentialResponse;
+    </script>
+  </body>
+</html>
